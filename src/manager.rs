@@ -11,6 +11,35 @@ pub(crate) struct ConnectionManager {
     use_sql_browser: bool,
 }
 
+#[async_trait]
+impl bb8::ManageConnection for ConnectionManager {
+    type Connection = Client<Compat<TcpStream>>;
+    type Error = MssqlError;
+
+    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
+        let tcp = if self.use_sql_browser {
+            TcpStream::connect_named(&self.config).await?
+        } else {
+            TcpStream::connect(&self.config.get_addr()).await?
+        };
+
+        tcp.set_nodelay(true)?;
+
+        Client::connect(self.config.clone(), tcp.compat_write())
+            .await
+            .map_err(|e| e.into())
+    }
+
+    async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
+        conn.simple_query("SELECT 1").await?;
+        Ok(())
+    }
+
+    fn has_broken(&self, _: &mut Self::Connection) -> bool {
+        false
+    }
+}
+
 pub(crate) struct ConnectionManagerBuilder {
     use_sql_browser: bool,
 }
@@ -38,34 +67,5 @@ impl Default for ConnectionManagerBuilder {
         ConnectionManagerBuilder {
             use_sql_browser: true,
         }
-    }
-}
-
-#[async_trait]
-impl bb8::ManageConnection for ConnectionManager {
-    type Connection = Client<Compat<TcpStream>>;
-    type Error = MssqlError;
-
-    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        let tcp = if self.use_sql_browser {
-            TcpStream::connect_named(&self.config).await?
-        } else {
-            TcpStream::connect(&self.config.get_addr()).await?
-        };
-
-        tcp.set_nodelay(true)?;
-
-        Client::connect(self.config.clone(), tcp.compat_write())
-            .await
-            .map_err(|e| e.into())
-    }
-
-    async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
-        conn.simple_query("SELECT 1").await?;
-        Ok(())
-    }
-
-    fn has_broken(&self, _: &mut Self::Connection) -> bool {
-        false
     }
 }
