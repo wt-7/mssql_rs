@@ -6,24 +6,43 @@ use tiberius::{Client, Config};
 use tokio::net::TcpStream;
 use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 
-pub(crate) struct TiberiusConnectionManager {
+pub(crate) struct ConnectionManager {
     config: Config,
     use_sql_browser: bool,
 }
 
-impl TiberiusConnectionManager {
-    pub fn new(
-        config: Config,
-        use_sql_browser: bool,
-    ) -> tiberius::Result<TiberiusConnectionManager> {
-        Ok(TiberiusConnectionManager {
+pub(crate) struct ConnectionManagerBuilder {
+    use_sql_browser: bool,
+}
+
+impl ConnectionManagerBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn use_sql_browser(&mut self, yes: bool) -> &mut Self {
+        self.use_sql_browser = yes;
+        self
+    }
+
+    pub fn build(&self, config: Config) -> Result<ConnectionManager, MssqlError> {
+        Ok(ConnectionManager {
             config,
-            use_sql_browser,
+            use_sql_browser: self.use_sql_browser,
         })
     }
 }
+
+impl Default for ConnectionManagerBuilder {
+    fn default() -> Self {
+        ConnectionManagerBuilder {
+            use_sql_browser: true,
+        }
+    }
+}
+
 #[async_trait]
-impl bb8::ManageConnection for TiberiusConnectionManager {
+impl bb8::ManageConnection for ConnectionManager {
     type Connection = Client<Compat<TcpStream>>;
     type Error = MssqlError;
 

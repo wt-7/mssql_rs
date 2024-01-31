@@ -1,11 +1,15 @@
-use crate::{error::MssqlError, manager::TiberiusConnectionManager, FromRow, Queryable};
+use crate::{
+    error::MssqlError,
+    manager::{ConnectionManager, ConnectionManagerBuilder},
+    FromRow, Queryable,
+};
 use bb8;
 use futures_util::{Stream, TryStreamExt};
 use serde::de::DeserializeOwned;
 use tiberius::{Query, QueryItem};
 
 pub struct SqlServer {
-    pool: bb8::Pool<TiberiusConnectionManager>,
+    pool: bb8::Pool<ConnectionManager>,
 }
 
 impl SqlServer {
@@ -45,6 +49,8 @@ impl SqlServer {
 
         if json_buffer.is_empty() {
             // Return an error if the result set is empty, as this won't be valid JSON.
+            // This error should be semantically differnt from a failure to parse.
+
             return Err(MssqlError::EmptyResult);
         }
 
@@ -89,7 +95,9 @@ pub struct SqlServerBuilder {
 
 impl SqlServerBuilder {
     pub async fn build(&self, config: tiberius::Config) -> Result<SqlServer, MssqlError> {
-        let manager = TiberiusConnectionManager::new(config, self.use_sql_browser)?;
+        let manager = ConnectionManagerBuilder::new()
+            .use_sql_browser(self.use_sql_browser)
+            .build(config)?;
 
         let pool = bb8::Pool::builder()
             .max_size(self.pool_max_size)
