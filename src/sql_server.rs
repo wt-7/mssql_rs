@@ -1,7 +1,6 @@
 use crate::{
     error::MssqlError,
     manager::{ConnectionManager, ConnectionManagerBuilder},
-    FromRow, Queryable,
 };
 use bb8;
 use futures_util::{Stream, TryStreamExt};
@@ -17,15 +16,20 @@ impl SqlServer {
         SqlServerBuilder::new().build(config).await
     }
 
+    /// Retrieve a connection from the pool. Returns true if successful.
     pub async fn test_connection(&self) -> bool {
         self.pool.get().await.is_ok()
     }
-
-    pub async fn json_query<T>(&self, params: &[String]) -> Result<T, MssqlError>
+    /// Run a JSON query and return the result as a deserialized object.
+    pub async fn json_query<T>(
+        &self,
+        query: &'static str,
+        params: &[String],
+    ) -> Result<T, MssqlError>
     where
-        T: DeserializeOwned + Queryable,
+        T: DeserializeOwned,
     {
-        let mut select = Query::new(T::query());
+        let mut select = Query::new(query);
 
         for param in params {
             select.bind(param);
@@ -49,19 +53,22 @@ impl SqlServer {
 
         if json_buffer.is_empty() {
             // Return an error if the result set is empty, as this won't be valid JSON.
-            // This error should be semantically differnt from a failure to parse.
-
+            // This error should be semantically different from a failure to parse.
             return Err(MssqlError::EmptyResult);
         }
 
         serde_json::from_str::<T>(&json_buffer).map_err(|e| e.into())
     }
 
-    pub async fn row_query<T>(&self, params: &[String]) -> Result<Vec<T>, MssqlError>
+    pub async fn row_query<T>(
+        &self,
+        query: &'static str,
+        params: &[String],
+    ) -> Result<Vec<T>, MssqlError>
     where
-        T: Queryable + FromRow,
+        T: TryFrom<tiberius::Row, Error = MssqlError>,
     {
-        let mut select = Query::new(T::query());
+        let mut select = Query::new(query);
 
         for param in params {
             select.bind(param);
@@ -77,8 +84,10 @@ impl SqlServer {
 
         while let Some(item) = stream.try_next().await? {
             if let QueryItem::Row(row) = item {
-                if let Ok(value) = T::from_row(row) {
-                    buf.push(value);
+                match T::try_from(row) {
+                    Ok(value) => buf.push(value),
+                    // If any row fails to parse, the entire query should fail.
+                    Err(e) => return Err(e),
                 }
             }
         }
