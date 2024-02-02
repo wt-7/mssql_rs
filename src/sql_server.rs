@@ -1,6 +1,7 @@
 use crate::{
     error::MssqlError,
     manager::{ConnectionManager, ConnectionManagerBuilder},
+    TryFromRow,
 };
 use bb8;
 use futures_util::{Stream, TryStreamExt};
@@ -66,7 +67,7 @@ impl SqlServer {
         params: &[String],
     ) -> Result<Vec<T>, MssqlError>
     where
-        T: TryFrom<tiberius::Row, Error = MssqlError>,
+        T: TryFromRow,
     {
         let mut select = Query::new(query);
 
@@ -87,7 +88,7 @@ impl SqlServer {
                 match T::try_from(row) {
                     Ok(value) => buf.push(value),
                     // If any row fails to parse, the entire query should fail.
-                    Err(e) => return Err(e),
+                    Err(e) => return Err(e.into()),
                 }
             }
         }
