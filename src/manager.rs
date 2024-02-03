@@ -1,4 +1,4 @@
-use crate::error::MssqlError;
+use crate::error::Error;
 use async_trait::async_trait;
 use bb8;
 use tiberius::SqlBrowser;
@@ -14,7 +14,7 @@ pub(crate) struct ConnectionManager {
 #[async_trait]
 impl bb8::ManageConnection for ConnectionManager {
     type Connection = Client<Compat<TcpStream>>;
-    type Error = MssqlError;
+    type Error = Error;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         let tcp = if self.use_sql_browser {
@@ -54,7 +54,7 @@ impl ConnectionManagerBuilder {
         self
     }
 
-    pub fn build(&self, config: Config) -> Result<ConnectionManager, MssqlError> {
+    pub fn build(&self, config: Config) -> Result<ConnectionManager, Error> {
         Ok(ConnectionManager {
             config,
             use_sql_browser: self.use_sql_browser,

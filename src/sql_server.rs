@@ -1,5 +1,5 @@
 use crate::{
-    error::MssqlError,
+    error::Error,
     manager::{ConnectionManager, ConnectionManagerBuilder},
     TryFromRow,
 };
@@ -13,20 +13,35 @@ pub struct SqlServer {
 }
 
 impl SqlServer {
-    pub async fn new(config: tiberius::Config) -> Result<Self, MssqlError> {
+    /// Create a new SqlServer using the default configuration.
+    /// The default configuration uses a single connection, SQL Browser, and a 5 second connection timeout.
+    /// For more control over the configuration, use [`SqlServerBuilder`] instead.
+    pub async fn new(config: tiberius::Config) -> Result<Self, Error> {
         SqlServerBuilder::new().build(config).await
     }
 
-    /// Retrieve a connection from the pool. Returns true if successful.
-    pub async fn test_connection(&self) -> bool {
+    /// Returns true if a connection is successfully returned from the pool
+    pub async fn connection_ok(&self) -> bool {
         self.pool.get().await.is_ok()
     }
-    /// Run a JSON query and return the result as a deserialized object.
-    pub async fn json_query<T>(
-        &self,
-        query: &'static str,
-        params: &[String],
-    ) -> Result<T, MssqlError>
+    /// Run a JSON query (e.g. SELECT ... FOR JSON PATH;) and return the result as a serde deserializable object.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let sql_server = SqlServer::new(cfg).await?;
+    ///
+    /// #[derive(serde::Deserialize)]
+    /// struct Person {
+    ///    id: i32,
+    ///    name: String,
+    /// }
+    ///
+    /// let query = "SELECT id, name FROM people FOR JSON PATH;";
+    ///
+    /// let rows = sql_server.json_query::<Vec<Person>>(query, &[]).await?;
+    /// ```
+    pub async fn json_query<T>(&self, query: &'static str, params: &[String]) -> Result<T, Error>
     where
         T: DeserializeOwned,
     {
@@ -55,17 +70,44 @@ impl SqlServer {
         if json_buffer.is_empty() {
             // Return an error if the result set is empty, as this won't be valid JSON.
             // This error should be semantically different from a failure to parse.
-            return Err(MssqlError::EmptyResult);
+            return Err(Error::EmptyResult);
         }
 
         serde_json::from_str::<T>(&json_buffer).map_err(|e| e.into())
     }
 
+    /// Run a SQL query and return the result as Vec<T>.
+    /// T must implement the TryFromRow trait, which specifies how to convert a [`tiberius::Row`] into T.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let sql_server = SqlServer::new(cfg).await?;
+    ///
+    /// struct Person {
+    ///     id: i32,
+    ///     name: String,
+    /// }
+    ///
+    /// impl TryFromRow for Person {
+    ///     fn try_from(row: tiberius::Row) -> mssql_rs::Result<Self> {
+    ///         Ok(Person {
+    ///             id: row.get(0).unwrap(),
+    ///             name: row.get(1).map(|s: &str| s.to_owned()).unwrap(),
+    ///         })
+    ///     }
+    /// }
+    ///
+    /// let query = "SELECT id, name FROM people;";
+    ///
+    /// let rows = sql_server.row_query::<Person>(query, &[]).await;
+    /// ```
+
     pub async fn row_query<T>(
         &self,
         query: &'static str,
         params: &[String],
-    ) -> Result<Vec<T>, MssqlError>
+    ) -> Result<Vec<T>, Error>
     where
         T: TryFromRow,
     {
@@ -85,11 +127,8 @@ impl SqlServer {
 
         while let Some(item) = stream.try_next().await? {
             if let QueryItem::Row(row) = item {
-                match T::try_from(row) {
-                    Ok(value) => buf.push(value),
-                    // If any row fails to parse, the entire query should fail.
-                    Err(e) => return Err(e.into()),
-                }
+                let value = T::try_from(row)?;
+                buf.push(value);
             }
         }
 
@@ -104,7 +143,7 @@ pub struct SqlServerBuilder {
 }
 
 impl SqlServerBuilder {
-    pub async fn build(&self, config: tiberius::Config) -> Result<SqlServer, MssqlError> {
+    pub async fn build(&self, config: tiberius::Config) -> Result<SqlServer, Error> {
         let manager = ConnectionManagerBuilder::new()
             .use_sql_browser(self.use_sql_browser)
             .build(config)?;

@@ -2,18 +2,19 @@ mod error;
 mod manager;
 mod sql_server;
 
-pub use error::MssqlError;
+pub use error::{Error, Result};
 pub use sql_server::{SqlServer, SqlServerBuilder};
 pub use tiberius;
 
 pub trait TryFromRow {
-    fn try_from(row: tiberius::Row) -> Result<Self, MssqlError>
+    fn try_from(row: tiberius::Row) -> Result<Self, crate::Error>
     where
         Self: Sized;
 }
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[tokio::test]
@@ -33,7 +34,7 @@ mod tests {
         }
 
         impl TryFromRow for TestRow {
-            fn try_from(row: tiberius::Row) -> Result<Self, MssqlError> {
+            fn try_from(row: tiberius::Row) -> Result<Self, Error> {
                 Ok(TestRow {
                     id: row.try_get(0)?.unwrap(),
                     name: row.try_get(1)?.map(|s: &str| s.to_owned()).unwrap(),
@@ -45,5 +46,46 @@ mod tests {
             .row_query::<TestRow>("SELECT 1 as id, 'test' as name", &[])
             .await
             .unwrap();
+    }
+
+    // #[tokio::test]
+    // async fn json_query() {
+    //     let cfg = tiberius::Config::from_ado_string("server=").unwrap();
+    //     let sql_server = SqlServer::new(cfg).await?;
+
+    //     #[derive(serde::Deserialize)]
+    //     struct Person {
+    //         id: i32,
+    //         name: String,
+    //     }
+
+    //     let query = "SELECT id, name FROM people FOR JSON PATH;";
+
+    //     let rows = sql_server.json_query::<Vec<Person>>(query, &[]).await?;
+    // }
+
+    #[tokio::test]
+    async fn row_query() {
+        let cfg = tiberius::Config::from_ado_string("server=").unwrap();
+        let sql_server = SqlServer::new(cfg).await.unwrap();
+
+        struct Person {
+            id: i32,
+            name: String,
+        }
+
+        impl TryFromRow for Person {
+            fn try_from(row: tiberius::Row) -> crate::Result<Self> {
+                let id = row.get(0);
+
+                let name = row.try_get(1)?.map(|s: &str| s.to_owned()).unwrap();
+
+                Ok(Person { id, name })
+            }
+        }
+
+        let query = "SELECT id, name FROM people FOR JSON PATH;";
+
+        let rows = sql_server.row_query::<Person>(query, &[]).await?;
     }
 }
