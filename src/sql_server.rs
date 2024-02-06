@@ -8,6 +8,7 @@ use futures_util::{Stream, TryStreamExt};
 use serde::de::DeserializeOwned;
 use tiberius::{Query, QueryItem};
 
+/// An abstraction over a SQL Server connection pool.
 pub struct SqlServer {
     pool: bb8::Pool<ConnectionManager>,
 }
@@ -102,7 +103,6 @@ impl SqlServer {
     ///
     /// let rows = sql_server.row_query::<Person>(query, &[]).await;
     /// ```
-
     pub async fn row_query<T>(
         &self,
         query: &'static str,
@@ -136,6 +136,9 @@ impl SqlServer {
     }
 }
 
+/// A builder for SqlServer
+///
+/// The builder provides configuration options for the maximum pool size, connection timeout, and whether to use SQL Browser.
 pub struct SqlServerBuilder {
     pool_max_size: u32,
     pool_connection_timeout: std::time::Duration,
@@ -143,6 +146,11 @@ pub struct SqlServerBuilder {
 }
 
 impl SqlServerBuilder {
+    /// Create a new builder for configuring a SqlServer.
+    pub fn new() -> Self {
+        Self::default()
+    }
+    /// Build a SqlServer using the provided configuration.
     pub async fn build(&self, config: tiberius::Config) -> Result<SqlServer, Error> {
         let manager = ConnectionManagerBuilder::new()
             .use_sql_browser(self.use_sql_browser)
@@ -156,21 +164,17 @@ impl SqlServerBuilder {
 
         Ok(SqlServer { pool })
     }
-
-    pub fn new() -> Self {
-        Self::default()
-    }
-
+    /// Set the maximum pool size. Defaults to 1.
     pub fn pool_max_size(&mut self, pool_max_size: u32) -> &mut Self {
         self.pool_max_size = pool_max_size;
         self
     }
-
+    /// Set whether to use SQL Browser. Defaults to true.
     pub fn use_sql_browser(&mut self, yes: bool) -> &mut Self {
         self.use_sql_browser = yes;
         self
     }
-
+    /// Set the connection timeout. Defaults to 5 seconds.
     pub fn pool_connection_timeout(
         &mut self,
         pool_connection_timeout: std::time::Duration,
