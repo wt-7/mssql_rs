@@ -78,7 +78,8 @@ impl SqlServer {
     }
 
     /// Run a SQL query and return the result as Vec<T>.
-    /// T must implement the TryFromRow trait, which specifies how to convert a [`tiberius::Row`] into T.
+    ///
+    /// T must implement the [`TryFromRow`] trait, which specifies how to convert a [`tiberius::Row`] into T.
     ///
     /// # Example
     ///
