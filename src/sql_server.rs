@@ -13,6 +13,7 @@ pub struct SqlServer {
     pool: bb8::Pool<ConnectionManager>,
 }
 
+/// Cloning is cheap, as the pool internals are behind an Arc. Each clone refers to the same pool.
 impl Clone for SqlServer {
     fn clone(&self) -> Self {
         Self {
