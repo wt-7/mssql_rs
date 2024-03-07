@@ -13,6 +13,14 @@ pub struct SqlServer {
     pool: bb8::Pool<ConnectionManager>,
 }
 
+impl Clone for SqlServer {
+    fn clone(&self) -> Self {
+        Self {
+            pool: self.pool.clone(),
+        }
+    }
+}
+
 impl SqlServer {
     /// Create a new SqlServer using the default configuration.
     /// The default configuration uses a single connection, SQL Browser, and a 5 second connection timeout.
