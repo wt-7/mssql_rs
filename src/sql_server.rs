@@ -51,7 +51,7 @@ impl SqlServer {
     ///
     /// let rows = sql_server.json_query::<Vec<Person>>(query, &[]).await?;
     /// ```
-    pub async fn json_query<T>(&self, query: &'static str, params: &[String]) -> Result<T, Error>
+    pub async fn json_query<T>(&self, query: &str, params: &[String]) -> Result<T, Error>
     where
         T: DeserializeOwned,
     {
@@ -113,11 +113,7 @@ impl SqlServer {
     ///
     /// let rows = sql_server.row_query::<Person>(query, &[]).await;
     /// ```
-    pub async fn row_query<T>(
-        &self,
-        query: &'static str,
-        params: &[String],
-    ) -> Result<Vec<T>, Error>
+    pub async fn row_query<T>(&self, query: &str, params: &[String]) -> Result<Vec<T>, Error>
     where
         T: TryFromRow,
     {
