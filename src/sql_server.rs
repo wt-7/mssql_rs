@@ -9,20 +9,20 @@ use serde::de::DeserializeOwned;
 use tiberius::{Query, QueryItem};
 
 /// An abstraction over a SQL Server connection pool.
-pub struct SqlServer {
-    pool: bb8::Pool<ConnectionManager>,
+pub struct SqlServerPool {
+    inner: bb8::Pool<ConnectionManager>,
 }
 
 /// Cloning is cheap, as the pool internals are behind an Arc. Each clone refers to the same pool.
-impl Clone for SqlServer {
+impl Clone for SqlServerPool {
     fn clone(&self) -> Self {
         Self {
-            pool: self.pool.clone(),
+            inner: self.inner.clone(),
         }
     }
 }
 
-impl SqlServer {
+impl SqlServerPool {
     /// Create a new SqlServer using the default configuration.
     /// The default configuration uses a single connection, SQL Browser, and a 5 second connection timeout.
     /// For more control over the configuration, use [`SqlServerBuilder`] instead.
@@ -32,8 +32,9 @@ impl SqlServer {
 
     /// Returns true if a connection is successfully returned from the pool
     pub async fn connection_ok(&self) -> bool {
-        self.pool.get().await.is_ok()
+        self.inner.get().await.is_ok()
     }
+
     /// Run a JSON query (e.g. SELECT ... FOR JSON PATH;) and return the result as a serde deserializable object.
     ///
     /// # Example
@@ -61,7 +62,7 @@ impl SqlServer {
             select.bind(param);
         }
 
-        let mut conn = self.pool.get().await?;
+        let mut conn = self.inner.get().await?;
 
         let mut stream = select.query(&mut conn).await?;
 
@@ -123,7 +124,7 @@ impl SqlServer {
             select.bind(param);
         }
 
-        let mut conn = self.pool.get().await?;
+        let mut conn = self.inner.get().await?;
 
         let mut stream = select.query(&mut conn).await?;
 
@@ -142,7 +143,7 @@ impl SqlServer {
     }
 }
 
-/// A builder for SqlServer
+/// A builder for SqlServerPool
 ///
 /// The builder provides configuration options for the maximum pool size, connection timeout, and whether to use SQL Browser.
 pub struct SqlServerBuilder {
@@ -152,12 +153,12 @@ pub struct SqlServerBuilder {
 }
 
 impl SqlServerBuilder {
-    /// Create a new builder for configuring a SqlServer.
+    /// Create a new builder for configuring a SqlServerPool.
     pub fn new() -> Self {
         Self::default()
     }
     /// Build a SqlServer using the provided configuration.
-    pub async fn build(&self, config: tiberius::Config) -> Result<SqlServer, Error> {
+    pub async fn build(&self, config: tiberius::Config) -> Result<SqlServerPool, Error> {
         let manager = ConnectionManagerBuilder::new()
             .use_sql_browser(self.use_sql_browser)
             .build(config)?;
@@ -168,9 +169,9 @@ impl SqlServerBuilder {
             .build(manager)
             .await?;
 
-        Ok(SqlServer { pool })
+        Ok(SqlServerPool { inner: pool })
     }
-    /// Set the maximum pool size. Defaults to 1.
+    /// Set the maximum pool size. Defaults to 3.
     pub fn pool_max_size(&mut self, pool_max_size: u32) -> &mut Self {
         self.pool_max_size = pool_max_size;
         self
@@ -193,7 +194,7 @@ impl SqlServerBuilder {
 impl Default for SqlServerBuilder {
     fn default() -> Self {
         SqlServerBuilder {
-            pool_max_size: 1,
+            pool_max_size: 3,
             use_sql_browser: true,
             pool_connection_timeout: std::time::Duration::from_secs(5),
         }

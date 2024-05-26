@@ -3,7 +3,7 @@ mod manager;
 mod sql_server;
 
 pub use error::{Error, Result};
-pub use sql_server::{SqlServer, SqlServerBuilder};
+pub use sql_server::{SqlServerBuilder, SqlServerPool};
 pub use tiberius;
 
 /// A trait for types that can be created from a [`tiberius::Row`].
