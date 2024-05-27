@@ -23,11 +23,11 @@ impl Clone for SqlServerPool {
 }
 
 impl SqlServerPool {
-    /// Create a new SqlServer using the default configuration.
+    /// Create a new SqlServerPool using the default configuration.
     /// The default configuration uses a single connection, SQL Browser, and a 5 second connection timeout.
-    /// For more control over the configuration, use [`SqlServerBuilder`] instead.
+    /// For more control over the configuration, use [`SqlServerPoolBuilder`] instead.
     pub async fn new(config: tiberius::Config) -> Result<Self, Error> {
-        SqlServerBuilder::new().build(config).await
+        SqlServerPoolBuilder::new().build(config).await
     }
 
     /// Returns true if a connection is successfully returned from the pool
@@ -40,7 +40,7 @@ impl SqlServerPool {
     /// # Example
     ///
     /// ```
-    /// let sql_server = SqlServer::new(cfg).await?;
+    /// let sql_server = SqlServerPool::new(cfg).await?;
     ///
     /// #[derive(serde::Deserialize)]
     /// struct Person {
@@ -94,7 +94,7 @@ impl SqlServerPool {
     /// # Example
     ///
     /// ```
-    /// let sql_server = SqlServer::new(cfg).await?;
+    /// let sql_server = SqlServerPool::new(cfg).await?;
     ///
     /// struct Person {
     ///     id: i32,
@@ -146,18 +146,18 @@ impl SqlServerPool {
 /// A builder for SqlServerPool
 ///
 /// The builder provides configuration options for the maximum pool size, connection timeout, and whether to use SQL Browser.
-pub struct SqlServerBuilder {
+pub struct SqlServerPoolBuilder {
     pool_max_size: u32,
     pool_connection_timeout: std::time::Duration,
     use_sql_browser: bool,
 }
 
-impl SqlServerBuilder {
+impl SqlServerPoolBuilder {
     /// Create a new builder for configuring a SqlServerPool.
     pub fn new() -> Self {
         Self::default()
     }
-    /// Build a SqlServer using the provided configuration.
+    /// Build a SqlServerPool using the provided configuration.
     pub async fn build(&self, config: tiberius::Config) -> Result<SqlServerPool, Error> {
         let manager = ConnectionManagerBuilder::new()
             .use_sql_browser(self.use_sql_browser)
@@ -176,7 +176,7 @@ impl SqlServerBuilder {
         self.pool_max_size = pool_max_size;
         self
     }
-    /// Set whether to use SQL Browser. Defaults to true.
+    /// Set whether to use SQL Browser. Defaults to false.
     pub fn use_sql_browser(&mut self, yes: bool) -> &mut Self {
         self.use_sql_browser = yes;
         self
@@ -191,11 +191,11 @@ impl SqlServerBuilder {
     }
 }
 
-impl Default for SqlServerBuilder {
+impl Default for SqlServerPoolBuilder {
     fn default() -> Self {
-        SqlServerBuilder {
+        Self {
             pool_max_size: 3,
-            use_sql_browser: true,
+            use_sql_browser: false,
             pool_connection_timeout: std::time::Duration::from_secs(5),
         }
     }

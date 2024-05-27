@@ -1,9 +1,9 @@
 mod error;
 mod manager;
-mod sql_server;
+mod pool;
 
 pub use error::{Error, Result};
-pub use sql_server::{SqlServerBuilder, SqlServerPool};
+pub use pool::{SqlServerPool, SqlServerPoolBuilder};
 pub use tiberius;
 
 /// A trait for types that can be created from a [`tiberius::Row`].
