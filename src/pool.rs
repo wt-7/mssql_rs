@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 use tiberius::{Query, QueryItem};
 
 /// An abstraction over a SQL Server connection pool.
+#[derive(Debug)]
 pub struct SqlServerPool {
     inner: bb8::Pool<ConnectionManager>,
 }
