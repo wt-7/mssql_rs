@@ -36,6 +36,11 @@ impl SqlServerPool {
         self.inner.get().await.is_ok()
     }
 
+    /// Returns the state of the pool, which includes the number of idle and total connections.
+    pub fn pool_state(&self) -> bb8::State {
+        self.inner.state()
+    }
+
     /// Run a JSON query (e.g. SELECT ... FOR JSON PATH;) and return the result as a serde deserializable object.
     ///
     /// # Example
