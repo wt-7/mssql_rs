@@ -1,6 +1,5 @@
 use crate::error::Error;
 use async_trait::async_trait;
-use bb8;
 use tiberius::SqlBrowser;
 use tiberius::{Client, Config};
 use tokio::net::TcpStream;
@@ -27,7 +26,7 @@ impl bb8::ManageConnection for ConnectionManager {
 
         Client::connect(self.config.clone(), tcp.compat_write())
             .await
-            .map_err(|e| e.into())
+            .map_err(Into::into)
     }
 
     async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {

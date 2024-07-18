@@ -3,7 +3,6 @@ use crate::{
     manager::{ConnectionManager, ConnectionManagerBuilder},
     TryFromRow,
 };
-use bb8;
 use futures_util::{Stream, TryStreamExt};
 use serde::de::DeserializeOwned;
 use tiberius::{Query, QueryItem};
@@ -24,7 +23,7 @@ impl Clone for SqlServerPool {
 }
 
 impl SqlServerPool {
-    /// Create a new SqlServerPool using the default configuration.
+    /// Create a new `SqlServerPool` using the default configuration.
     /// The default configuration uses a single connection, SQL Browser, and a 5 second connection timeout.
     /// For more control over the configuration, use [`SqlServerPoolBuilder`] instead.
     pub async fn new(config: tiberius::Config) -> Result<Self, Error> {
@@ -87,7 +86,7 @@ impl SqlServerPool {
             return Err(Error::EmptyResult);
         }
 
-        serde_json::from_str::<T>(&json_buffer).map_err(|e| e.into())
+        serde_json::from_str::<T>(&json_buffer).map_err(Into::into)
     }
 
     /// Run a SQL query and return the result as Vec<T>.
@@ -143,7 +142,7 @@ impl SqlServerPool {
     }
 }
 
-/// A builder for SqlServerPool
+/// A builder for a `SqlServerPool`
 ///
 /// The builder provides configuration options for the maximum pool size, connection timeout, and whether to use SQL Browser.
 pub struct SqlServerPoolBuilder {
@@ -153,11 +152,11 @@ pub struct SqlServerPoolBuilder {
 }
 
 impl SqlServerPoolBuilder {
-    /// Create a new builder for configuring a SqlServerPool.
+    /// Create a new builder for configuring a `SqlServerPool`.
     pub fn new() -> Self {
         Self::default()
     }
-    /// Build a SqlServerPool using the provided configuration.
+    /// Build a `SqlServerPool` using the provided configuration.
     pub async fn build(&self, config: tiberius::Config) -> Result<SqlServerPool, Error> {
         let manager = ConnectionManagerBuilder::new()
             .use_sql_browser(self.use_sql_browser)
