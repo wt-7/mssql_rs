@@ -63,17 +63,14 @@ impl SqlServerPool {
         T: DeserializeOwned,
     {
         let mut select = Query::new(query);
-
         for param in params {
             select.bind(param);
         }
 
         let mut conn = self.inner.get().await?;
-
         let mut stream = select.query(&mut conn).await?;
 
         let size = stream.size_hint().1.unwrap_or(0);
-
         let mut json_buffer = String::with_capacity(size);
 
         while let Some(item) = stream.try_next().await? {
@@ -125,17 +122,14 @@ impl SqlServerPool {
         T: TryFromRow,
     {
         let mut select = Query::new(query);
-
         for param in params {
             select.bind(param);
         }
 
         let mut conn = self.inner.get().await?;
-
         let mut stream = select.query(&mut conn).await?;
 
         let size = stream.size_hint().1.unwrap_or(0);
-
         let mut buf = Vec::with_capacity(size);
 
         while let Some(item) = stream.try_next().await? {
