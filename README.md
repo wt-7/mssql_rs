@@ -25,7 +25,7 @@ const CON_STR: &str = "your-connection-string"
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{
-    let config = tiberius::Config::from_ado_string(CON_STR)?;
+    let cfg = tiberius::Config::from_ado_string(CON_STR)?;
     // Create a SqlServerPool with the default configuration.
     // Use mssql_rs::SqlServerPoolBuilder for more options
     let pool = SqlServerPool::new(cfg).await?;
