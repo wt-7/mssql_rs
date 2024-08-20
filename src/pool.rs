@@ -88,6 +88,38 @@ impl SqlServerPool {
 
         serde_json::from_str::<T>(&json_buffer).map_err(Into::into)
     }
+    /// Run a JSON query (e.g. SELECT ... FOR JSON PATH;) and return the result as a serde deserializable object.
+    /// If the result is empty, return the default value of T.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let sql_server = SqlServerPool::new(cfg).await?;
+    ///
+    /// #[derive(serde::Deserialize)]
+    /// struct Person {
+    ///    id: i32,
+    ///    name: String,
+    /// }
+    ///
+    /// let query = "SELECT id, name FROM people FOR JSON PATH;";
+    ///
+    /// let rows = sql_server.json_query::<Vec<Person>>(query, &[]).await?;
+    /// ```
+    pub async fn json_query_with_default<T>(
+        &self,
+        query: &str,
+        params: &[String],
+    ) -> Result<T, Error>
+    where
+        T: DeserializeOwned + Default,
+    {
+        match self.json_query(query, params).await {
+            Ok(result) => Ok(result),
+            Err(Error::EmptyResult) => Ok(T::default()),
+            Err(e) => Err(e),
+        }
+    }
 
     /// Run a SQL query and return the result as Vec<T>.
     ///
